@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" x-data="libraryApp()" x-init="init()">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Library System</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100 text-gray-900 min-h-screen">
+
+    <!-- Auth Section -->
+    <div x-show="!user" class="min-h-screen flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+            <h2 class="text-2xl font-bold text-center mb-4" x-text="isLogin ? 'Login' : 'Register'"></h2>
+            <form @submit.prevent="isLogin ? login() : register()" class="space-y-4">
+                <input type="email" x-model="form.email" placeholder="Email" required class="w-full border p-2 rounded">
+                <input type="password" x-model="form.password" placeholder="Password" required class="w-full border p-2 rounded">
+                <button class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700" x-text="isLogin ? 'Login' : 'Register'"></button>
+            </form>
+            <p class="mt-4 text-center text-sm">
+                <a href="#" class="text-blue-600" @click="isLogin = !isLogin">
+                    <span x-text="isLogin ? 'Create an account' : 'Already have an account?'"></span>
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <!-- App Section -->
+    <div x-show="user" x-cloak class="p-6 max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">📚 My Library</h1>
+            <div>
+                <span class="text-sm mr-2">Hi, <strong x-text="user.email"></strong></span>
+                <button @click="logout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded">Logout</button>
+            </div>
+        </div>
+
+        <!-- Search & Sort Controls -->
+        <div class="flex flex-wrap gap-4 mb-6">
+            <input type="text" x-model="search" placeholder="Search by title or author" class="p-2 border rounded w-full sm:w-64">
+            <select x-model="sortBy" class="p-2 border rounded">
+        <option value="">Sort by...</option>
+        <option value="title">Title</option>
+        <option value="author">Author</option>
+        <option value="year">Year</option>
+      </select>
+        </div>
+
+        <!-- Books Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <template x-for="book in filteredBooks()" :key="book.id">
+        <div class="bg-white p-4 rounded shadow space-y-2">
+          <h3 class="text-xl font-semibold" x-text="book.title"></h3>
+          <p class="text-sm text-gray-700" x-text="'Author: ' + book.author"></p>
+          <p class="text-sm text-gray-700" x-text="'Year: ' + book.year"></p>
+          <p class="text-sm" :class="book.borrowedBy ? 'text-red-600' : 'text-green-600'" x-text="book.borrowedBy ? 'Borrowed by ' + book.borrowedBy : 'Available'"></p>
+          <button
+            @click="toggleBorrow(book)"
+            class="w-full py-1 rounded text-white"
+            :class="book.borrowedBy === user.email ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700'"
+            x-text="book.borrowedBy === user.email ? 'Return Book' : 'Borrow Book'"
+            :disabled="book.borrowedBy && book.borrowedBy !== user.email"
+          ></button>
+        </div>
+      </template>
+        </div>
+    </div>
+
+    <script>
+        function libraryApp() {
+            return {
+                user: null,
+                isLogin: true,
+                form: {
+                    email: '',
+                    password: ''
+                },
+                search: '',
+                sortBy: '',
+                books: [{
+                    id: 1,
+                    title: '1984',
+                    author: 'George Orwell',
+                    year: 1949,
+                    borrowedBy: null
+                }, {
+                    id: 2,
+                    title: 'Pride and Prejudice',
+                    author: 'Jane Austen',
+                    year: 1813,
+                    borrowedBy: null
+                }, {
+                    id: 3,
+                    title: 'The Hobbit',
+                    author: 'J.R.R. Tolkien',
+                    year: 1937,
+                    borrowedBy: null
+                }, {
+                    id: 4,
+                    title: 'To Kill a Mockingbird',
+                    author: 'Harper Lee',
+                    year: 1960,
+                    borrowedBy: null
+                }, {
+                    id: 5,
+                    title: 'The Great Gatsby',
+                    author: 'F. Scott Fitzgerald',
+                    year: 1925,
+                    borrowedBy: null
+                }],
+                init() {
+                    const savedUser = localStorage.getItem('libraryUser');
+                    if (savedUser) this.user = JSON.parse(savedUser);
+                },
+                login() {
+                    const users = JSON.parse(localStorage.getItem('libraryUsers') || '[]');
+                    const found = users.find(u => u.email === this.form.email && u.password === this.form.password);
+                    if (found) {
+                        this.user = found;
+                        localStorage.setItem('libraryUser', JSON.stringify(this.user));
+                    } else {
+                        alert('Invalid credentials');
+                    }
+                },
+                register() {
+                    const users = JSON.parse(localStorage.getItem('libraryUsers') || '[]');
+                    if (users.some(u => u.email === this.form.email)) {
+                        alert('Email already exists');
+                        return;
+                    }
+                    const newUser = {...this.form
+                    };
+                    users.push(newUser);
+                    localStorage.setItem('libraryUsers', JSON.stringify(users));
+                    alert('Registration successful! You can now login.');
+                    this.isLogin = true;
+                },
+                logout() {
+                    localStorage.removeItem('libraryUser');
+                    this.user = null;
+                },
+                toggleBorrow(book) {
+                    if (book.borrowedBy === this.user.email) {
+                        book.borrowedBy = null;
+                    } else if (!book.borrowedBy) {
+                        book.borrowedBy = this.user.email;
+                    }
+                },
+                filteredBooks() {
+                    let filtered = this.books.filter(book =>
+                        book.title.toLowerCase().includes(this.search.toLowerCase()) ||
+                        book.author.toLowerCase().includes(this.search.toLowerCase())
+                    );
+                    if (this.sortBy) {
+                        filtered.sort((a, b) => {
+                            if (a[this.sortBy] < b[this.sortBy]) return -1;
+                            if (a[this.sortBy] > b[this.sortBy]) return 1;
+                            return 0;
+                        });
+                    }
+                    return filtered;
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>
